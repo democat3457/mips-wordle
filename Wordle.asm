@@ -1,57 +1,48 @@
 .data
-buffer:     .space  6       # Buffer to store the word (including null terminator)
-filename:   .asciiz "dictionary.txt"   # Name of the input file
 
 .text
 main:
-    
+	# Initialize and fetch word list
+	jal getWordList
+	move $t0, $v0
+	move $t1, $v1
+	
+	# Print first word in dictionary
+	li $a0, 0
+	jal getWordAtIndex
+	move $t3, $v0		# word
+	li $v0, 4			# syscall code for print_string
+	move $a0, $t3		# buffer containing the word
+	syscall
+	
+	# Print last word in dictionary
+	move $a0, $t1
+	addi $a0, $a0, -1
+	jal getWordAtIndex
+	move $t3, $v0		# word
+	li $v0, 4			# syscall code for print_string
+	move $a0, $t3		# buffer containing the word
+	syscall
+	
+	# Generate random number
+	li $a0, 0			# Set seed to default
+	move $a1, $t1		# Set maximum value to word list length
+	li $v0, 42			# syscall 42: get random val
+	syscall
+	move $t2, $a0
+	
+	move $a0, $t2
+	jal getWordAtIndex
+	move $t3, $v0		# word
+	
+	# Print the word
+	li $v0, 4			# syscall code for print_string
+	move $a0, $t3		# buffer containing the word
+	syscall
+	
+	# Exit
+	li $v0, 10			# syscall code for exit
+	syscall
 
-    # Open the file
-    li $v0, 13          # syscall code for open
-    la $a0, filename    # load filename into $a0
-    li $a1, 0           # flag for read
-    li $a2, 0           # mode for read
-    syscall
-    
-    move $s0, $v0       # save file descriptor
-    
-
-    
-    # Load the minimum and maximum values from memory
-    li $t0, 1              # Set min of range to 1
-    li $a0, 0		   # Set seed to default
-    li $a1, 14855          # Set maximum value
-    li $v0, 42             # syscall 42: get random val
-    syscall
-    
-    add $t1, $a0, $t0      # Set min range
-
-    
-ReadToCorrectWord:
-    # Read from the file
-    li $v0, 14          # syscall code for read
-    move $a0, $s0       # file descriptor
-    la $a1, buffer      # buffer to read into
-    li $a2, 6           # number of bytes to read (5 characters + null terminator)
-    syscall
-    
-     # Print the word
-    li $v0, 4           # syscall code for print_string
-    la $a0, buffer      # buffer containing the word
-    syscall
-    
-    # for loop ReadCorrectWord
-    sub $t1, $t1, 1
-    bne $t1, 0, ReadToCorrectWord
-    
-   
- 
-    
-    # Close the file
-    li $v0, 16          # syscall code for close
-    move $a0, $s0       # file descriptor
-    syscall
-    
-    # Exit
-    li $v0, 10          # syscall code for exit
-    syscall
+# Includes
+.include "Dictionary.asm"
