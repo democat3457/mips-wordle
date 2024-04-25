@@ -159,7 +159,7 @@ drawLoop:
 	addi $t3, $t3, 1	#Increment position of letter in row by 1 (shift 1 position right)
 	bne $t3, 5, drawLoop	#Loop until we get to position 5 (all letters should be drawn by this point)
 	lw $ra, 0($sp)		#Load return address from stack
-	addi $sp, $sp, -4	#Update stack pointer
+	addi $sp, $sp, 4	#Update stack pointer
 	jr $ra			#Return
 
 #The letter that needs to be drawn based on the ASCII value in $a0
@@ -306,7 +306,7 @@ drawLetter:
 	add $s0, $s0, $t6	#Shift by the necessary number of pixels
 	sw $t4, ($s0)		#Set destination pixel to black
 	lw $t6, ($t2)		#Load next pixel (damn this is redundant, I should fix this at some point)
-	bne $t6, -1 drawLetter	#Loop until -1 is reached signifying the end of the array
+	bne $t6, -1, drawLetter	#Loop until -1 is reached signifying the end of the array
 	jr $ra			#Return
 
 #Terminates the program
