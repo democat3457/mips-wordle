@@ -1,6 +1,6 @@
 .data
-targetWord: .asciiz "aabbb"
-guessWord: .asciiz "bbbaa"
+targetWord: .asciiz "aabbc"
+guessWord: .asciiz "bbbad"
 
 beforeNoMatch: .byte ' '
 afterNoMatch: .byte ' '
@@ -122,6 +122,7 @@ printMatchTypes:
 		addi $t3, $t3, 1
 		addi $a1, $a1, 1
 		bne $t3, 5, printWord
+		j exit
 		
 	OtherExit:		
 	addi $t3, $t3, 1
