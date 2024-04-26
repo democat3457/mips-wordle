@@ -11,6 +11,9 @@
 # - getDictionarySize
 #   Takes no arguments.
 #   Returns word list size in $v0.
+# - isWordInDictionary
+#   Takes an address to a 5-letter word in $a0.
+#   Returns in $v0 a 1 if the word is in the dictionary, otherwise 0.
 
 .data
 WORD_LENGTH:	.word 5		# Length of word
@@ -110,6 +113,46 @@ getWordAtIndex:
 	jr $ra
 
 
+isWordInDictionary:
+	addi $sp, $sp, -16		# store $s0, $s1, $s2, $ra on stack
+	sw $s2, 12($sp)
+	sw $s1, 8($sp)
+	sw $s0, 4($sp)
+	sw $ra, 0($sp)
+	move $s0, $a0			# store $a0 in $s0 (address to word)
+	jal getDictionarySize	# store word list length in $s2
+	move $s2, $v0
+	
+	li $s1, 0				# initialize loop index in $s1
+	checkDictionary:
+		move $a0, $s1			# get word at loop index
+		jal getWordAtIndex
+		move $t0, $v0			# address of dictionary word in $t0
+		move $t1, $s0			# address of argument word in $t1
+		checkWordCharacters:
+			lb $t2, ($t0)		# load byte into $t2 at indexed address of dictionary word
+			lb $t3, ($t1)		# load byte into $t3 at indexed address of argument word
+			bne $t2, $t3, checkWordCharactersEndFail	# if chars do not match, go to next word
+			beqz $t2, checkWordCharactersEndSuccess		# if chars match but are not zero, keep checking word
+			addi $t0, $t0, 1	# increment byte addresses for both words
+			addi $t1, $t1, 1
+			j checkWordCharacters
+		checkWordCharactersEndSuccess:
+			li $v0, 1									# if chars match and are zero, found match; return 1
+			j checkDictionaryEnd
+		checkWordCharactersEndFail:
+		addi $s1, $s1, 1		# increment loop index
+		bne $s1, $s2, checkDictionary	# if loop has not reached end of word list, iterate dictionary
+		li $v0, 0						# if loop has reached end of word list, failed match; return 0
+	checkDictionaryEnd:
+	lw $ra, 0($sp)
+	lw $s0, 4($sp)
+	lw $s1, 8($sp)
+	lw $s2, 12($sp)
+	addi $sp, $sp, 16		# load $s0 and $ra from stack
+	jr $ra
+
+
 getDictionarySize:
 	lw $v0, wordListSize
 	beq $v0, -1, loadDictionarySize	# if wordListPtr is unset, load word list
@@ -163,7 +206,7 @@ errorReadingFile:
 	li $v0, 17				# exit with error
 	li $a0, 1				# error code non-zero
 	syscall
-	
+
 
 openValidDictionaryFile:
 	# Open the file
@@ -175,7 +218,7 @@ openValidDictionaryFile:
 	
 	beq $v0, -1, errorOpeningFile	# if file descriptor is -1, error happened
 	jr $ra					# return with $v0 containing valid file descriptor
-errorOpeningFile:
+	errorOpeningFile:
 	li $v0, 4				# print error message
 	la $a0, msgErrOpenFile
 	syscall
