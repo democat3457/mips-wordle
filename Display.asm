@@ -3,6 +3,7 @@ numPixels: .word 0x20000
 green: .word 0x0000FF00
 yellow: .word 0x00FFFF00
 gray: .word 0x00D3D3D3
+darkGray: .word 0x00AAAAAA
 black: .word 0x00000000
 white: .word 0x00FFFFFF
 input: .asciiz "hello"
@@ -13,6 +14,7 @@ word4: .asciiz "pqrst"
 word5: .asciiz "uvwxy"
 word6: .asciiz "zzzzz"
 tlc: .word 0
+gridTlc: .word 0
 #Letters are represented as an array of displacements starting with the top left pixel of the letter and are terminated with -1.
 #1 represents one pixel shifted to the right, and 64 represents one pixel down. These must be multiplied by 4 since each pixel is represented by a word.
 a: .word 1, 1, 62, 3, 61, 1, 1, 1, 61, 3, 61, 3, -1
@@ -44,6 +46,7 @@ z: .word 0, 1, 1, 1, 64, 63, 63, 63, 1, 1, 1, -1
 exclam: .word 2, 64, 64, 128, -1
 
 .text
+.globl drawBoard
 drawBoard:
 #Draws background
 	la $t0, frameBuffer	#Load frame buffer address
@@ -58,7 +61,7 @@ bg:
 #Draws rows of game board
 	la $t0, frameBuffer	#Load frame buffer address
 	li $t1, 0		#Start at row 0:
-	lw $t2, white		#Load black color for borders
+	lw $t2, white		#Load white color for borders
 	li $t3, 41		#Number of pixels per row
 	li $t4, 7		#Number of rows
 	li $t6, 11		#Change this number to move grid up or down
@@ -72,7 +75,7 @@ row:
 	sw $t2, 0($t0)		#Sets the pixel to black
 	addi $t0, $t0, 4	#Increment to the next pixel
 	addi $t3, $t3, -1	#Decrease number of pixels remaining by 1
-	bnez $t3, row		#Loop until no pixels remaining (all pixels set to black)
+	bnez $t3, row		#Loop until no pixels remaining (all pixels set to white)
 	la $t0, frameBuffer	#Load frame buffer address
 	add $t0, $t0, $s7	#Finds the pixel to start drawing grid (top left corner)
 	addi $t1, $t1, 1	#Go to next row
@@ -86,16 +89,16 @@ row:
 #Draws columns of game board
 	la $t0, frameBuffer	#Load frame buffer address
 	li $t1, 0		#Start at column 0
-	lw $t2, white		#Load black color for borders
+	lw $t2, white		#Load white color for borders
 	li $t3, 49		#Number of pixels per column
 	li $t4, 6		#Number of columns
 	add $t0, $t0, $s7	#Finds the pixel to start drawing grid (top left corner)
 
 col:
-	sw $t2, 0($t0)		#Sets the pixel to black
+	sw $t2, 0($t0)		#Sets the pixel to white
 	addi $t0, $t0, 256	#Increment to the next pixel
 	addi $t3, $t3, -1	#Decrease number of pixels remaining by 1
-	bnez $t3, col		#Loop until no pixels remaining (all pixels set to black)
+	bnez $t3, col		#Loop until no pixels remaining (all pixels set to white)
 	la $t0, frameBuffer	#Load frame buffer address
 	add $t0, $t0, $s7	#Finds the pixel to start drawing grid (top left corner)
 	addi $t1, $t1, 1	#Go to next column
@@ -106,15 +109,17 @@ col:
 	add $t0, $t0, $t5	#Set frame buffer to first pixel in column
 	bne $t1, $t4, col	#Repeat until all columns drawn
 	
-#Finds the top left corner of the board (top left pixel of letter in top left square) and stores it for future use
+#Finds the top left corner of the board (top left pixel of letter in top left square) and grid (top left gray pixel) and stores them for future use
 	la $t0, frameBuffer	#Load frame buffer address
 	add $t0, $t0, $s7	#Finds the top left corner of the grid
-	li $t2, 2
-	sll $t2, $t2, 8		#Moves two pixels down
-	addi $t2, $t2, 8	#Moves two pixels right
+	li $t2, 1
+	sll $t2, $t2, 8		#Moves one pixels down
+	addi $t2, $t2, 4	#Moves one pixels right
+	add $t0, $t0, $t2	#Gets top left gray pixel of top left grid
+	sw $t0, gridTlc		#Store pixel location
 	add $t0, $t0, $t2	#Gets location where first letter should be drawn
 	sw $t0, tlc		#Store pixel location
-jr $ra
+	jr $ra
 
 
 
@@ -141,7 +146,6 @@ jr $ra
 	
 drawWord:
 	move $t3, $zero		#Position of letter in row (starts at position 0)
-	addi $a1, $a1, -1	#Guess number - 1 to get row #
 	addi $sp, $sp, -4	#Update stack pointer
 	sw $ra, 0($sp)		#Save return address to stack
 
@@ -310,5 +314,57 @@ drawLetter:
 	lw $t6, ($t2)		#Load next pixel (damn this is redundant, I should fix this at some point)
 	bne $t6, -1, drawLetter	#Loop until -1 is reached signifying the end of the array
 	jr $ra			#Return
+	
+#Draws match
+drawMatch:
+	lb $t1, ($a0)		#Load match value of first letter
+	move $t2, $zero		#Load column number of first column (0)
+	
+matchLoop:
+	lw $t0, gridTlc		#Load first pixel to recolor
+	beq $t1, 0, drawGray	#Branches depending on match value
+	beq $t1, 1, drawYellow
+	beq $t1, 2, drawGreen
+	
+backToLoop:
+	addi $a0, $a0, 1	#Increment letter number
+	lb $t1, ($a0)		#Load match value of next letter
+	addi $t2, $t2, 1	#Increment column number
+	blt $t2, 5, matchLoop	#Loop until reach null terminator
+	jr $ra			#Return
 
+#Load necessary color
+drawGray:
+	lw $t3, darkGray
+	j drawColor
 
+drawYellow:
+	lw $t3, yellow
+	j drawColor
+
+drawGreen:
+	lw $t3, green
+	j drawColor
+	
+#Fill in this space with correct color	
+drawColor:
+	li $t4, 8
+	sll $t4, $t4, 8
+	mul $t5, $t4, $a1	#Multiply by number of rows to move down
+	add $t0, $t0, $t5	#Move down by the necessary number of rows
+	srl $t4, $t4, 6		#To move right 8 pixels
+	mul $t5, $t4, $t2	#Multiply by number of spaces to move right
+	add $t0, $t0, $t5	#Move right by necessary number of spaces
+	move $t4, $zero		#Initialize horizontal position to 0
+	move $t5, $zero		#Initialize vertical position to 0
+
+colorLoop:
+	sw $t3, ($t0)		#Set destination pixel to color
+	addi $t0, $t0, 4	#Go to next pixel
+	addi $t4, $t4, 1	#Increment horizontal position
+	blt $t4, 7, colorLoop	#Loop until horizontal position reaches 7, then all pixels in the row have been recolored
+	addi $t0, $t0, 228	#Sorry for the magic number, this moves to the left-most pixel of the next row of current square
+	move $t4, $zero		#Reset horizontal position
+	addi $t5, $t5, 1	#Increment vertical position
+	blt $t5, 7, colorLoop	#Loop until vertical position reaches 7, then all pixels have been recolored
+	j backToLoop		#Return to loop so next letter's tile can be recolored (if there is a next letter)

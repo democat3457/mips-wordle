@@ -82,9 +82,12 @@ loopWhileTries:
 	
 	jal asciiPrint
 	
+	la $a0, guessWordMatches
+	move $a1, $s5
+	jal drawMatch
+	
 	la $a0, guessWord
 	move $a1, $s5
-	addi $a1, $a1, 1
 	jal drawWord
 	
 	#check for win
