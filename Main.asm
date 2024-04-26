@@ -25,7 +25,7 @@ winMessage: .asciiz "\nWinner Winner Chicken Dinner!!"
 
 errorInvalidLength: .asciiz "length of 5 needed, try again\t\t\t\t\t\t"
 errorInvalidChars: .asciiz "\nOnly lowercase a-z, try again\t\t\t\t\t\t"
-errorWordNotFound: .asciiz "\nWord not found, try again\t\t\t\t\t\t"
+errorInvalidWord: .asciiz "\nWord not found, try again\t\t\t\t\t\t"
 
 .text
 main:
@@ -80,12 +80,13 @@ loopWhileTries:
 	la $a2, guessWordMatches
 	jal wordle_compare_words
 	
+	#draw ascii
 	jal asciiPrint
 	
+	#draw gui
 	la $a0, guessWordMatches
 	move $a1, $s5
 	jal drawMatch
-	
 	la $a0, guessWord
 	move $a1, $s5
 	jal drawWord
@@ -132,7 +133,7 @@ asciiPrint:
 	li $v0, 4
 	la $a0, preRow
 	syscall
-
+	#print according to match type for each char in guessWord
 	add $t0, $0, $0
 	asciiPrintLoop:
 		lb $t1, guessWordMatches($t0)
@@ -197,7 +198,15 @@ isValidInput:
 		addi $t0, $t0, 1
 	bne $t0, 5, validateInputLoop
 	
+	#check if guessWord is in dictionary
+	la $a0, guessWord
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal isWordInDictionary
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
 	
+	beq $v0, 0, invalidWord
 	
 	#return valid if no violations found
 	li $v0, 1
@@ -212,6 +221,12 @@ isValidInput:
 	invalidLength:
 	li $v0, 4
 	la $a0, errorInvalidLength
+	syscall
+	li $v0, 0
+	jr $ra
+	invalidWord:
+	li $v0, 4
+	la $a0, errorInvalidWord
 	syscall
 	li $v0, 0
 	jr $ra
