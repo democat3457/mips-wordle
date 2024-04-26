@@ -45,7 +45,7 @@ z: .word 0, 1, 1, 1, 64, 63, 63, 63, 1, 1, 1, -1
 exclam: .word 2, 64, 64, 128, -1
 
 .text
-main:
+drawBoard:
 #Draws background
 	la $t0, frameBuffer	#Load frame buffer address
 	li $t1, 4096		#Number of pixels
@@ -66,8 +66,8 @@ bg:
 	sll $t6, $t6, 8
 	li $t7, 11		#Change this number to move grid left or right
 	sll $t7, $t7 2
-	add $s0, $t6, $t7	#Saves the starting pixel (relative to frame buffer address)
-	add $t0, $t0, $s0	#Finds the pixel to start drawing grid (top left corner)
+	add $s7, $t6, $t7	#Saves the starting pixel (relative to frame buffer address)
+	add $t0, $t0, $s7	#Finds the pixel to start drawing grid (top left corner)
 
 row:
 	sw $t2, 0($t0)		#Sets the pixel to black
@@ -75,7 +75,7 @@ row:
 	addi $t3, $t3, -1	#Decrease number of pixels remaining by 1
 	bnez $t3, row		#Loop until no pixels remaining (all pixels set to black)
 	la $t0, frameBuffer	#Load frame buffer address
-	add $t0, $t0, $s0	#Finds the pixel to start drawing grid (top left corner)
+	add $t0, $t0, $s7	#Finds the pixel to start drawing grid (top left corner)
 	addi $t1, $t1, 1	#Go to next row
 	li $t3, 41		#Pixels per row
 	li $t5, 8		#Row every 8 pixels
@@ -90,7 +90,7 @@ row:
 	lw $t2, white		#Load black color for borders
 	li $t3, 49		#Number of pixels per column
 	li $t4, 6		#Number of columns
-	add $t0, $t0, $s0	#Finds the pixel to start drawing grid (top left corner)
+	add $t0, $t0, $s7	#Finds the pixel to start drawing grid (top left corner)
 
 col:
 	sw $t2, 0($t0)		#Sets the pixel to black
@@ -98,7 +98,7 @@ col:
 	addi $t3, $t3, -1	#Decrease number of pixels remaining by 1
 	bnez $t3, col		#Loop until no pixels remaining (all pixels set to black)
 	la $t0, frameBuffer	#Load frame buffer address
-	add $t0, $t0, $s0	#Finds the pixel to start drawing grid (top left corner)
+	add $t0, $t0, $s7	#Finds the pixel to start drawing grid (top left corner)
 	addi $t1, $t1, 1	#Go to next column
 	li $t3, 49		#Number of pixels per column
 	li $t5, 8		#Column every 8 pixels
@@ -109,33 +109,36 @@ col:
 	
 #Finds the top left corner of the board (top left pixel of letter in top left square) and stores it for future use
 	la $t0, frameBuffer	#Load frame buffer address
-	add $t0, $t0, $s0	#Finds the top left corner of the grid
+	add $t0, $t0, $s7	#Finds the top left corner of the grid
 	li $t2, 2
 	sll $t2, $t2, 8		#Moves two pixels down
 	addi $t2, $t2, 8	#Moves two pixels right
 	add $t0, $t0, $t2	#Gets location where first letter should be drawn
 	sw $t0, tlc		#Store pixel location
-	
+jr $ra
+
+
+
 #Draws hello as the first guess
-	la $a0, word1	#Load address of the word that was guessed
-	li $a1, 1	#Guess number (1-6)
-	jal drawWord
-	la $a0, word2	#Load address of the word that was guessed
-	li $a1, 2	#Guess number (1-6)
-	jal drawWord
-	la $a0, word3	#Load address of the word that was guessed
-	li $a1, 3	#Guess number (1-6)
-	jal drawWord
-	la $a0, word4	#Load address of the word that was guessed
-	li $a1, 4	#Guess number (1-6)
-	jal drawWord
-	la $a0, word5	#Load address of the word that was guessed
-	li $a1, 5	#Guess number (1-6)
-	jal drawWord
-	la $a0, word6	#Load address of the word that was guessed
-	li $a1, 6	#Guess number (1-6)
-	jal drawWord
-	j exit
+#	la $a0, word1	#Load address of the word that was guessed
+#	li $a1, 1	#Guess number (1-6)
+#	jal drawWord
+#	la $a0, word2	#Load address of the word that was guessed
+#	li $a1, 2	#Guess number (1-6)
+#	jal drawWord
+#	la $a0, word3	#Load address of the word that was guessed
+#	li $a1, 3	#Guess number (1-6)
+#	jal drawWord
+#	la $a0, word4	#Load address of the word that was guessed
+#	li $a1, 4	#Guess number (1-6)
+#	jal drawWord
+#	la $a0, word5	#Load address of the word that was guessed
+#	li $a1, 5	#Guess number (1-6)
+#	jal drawWord
+#	la $a0, word6	#Load address of the word that was guessed
+#	li $a1, 6	#Guess number (1-6)
+#	jal drawWord
+#	j exit
 	
 drawWord:
 	move $t3, $zero		#Position of letter in row (starts at position 0)
@@ -144,14 +147,14 @@ drawWord:
 	sw $ra, 0($sp)		#Save return address to stack
 
 drawLoop:
-	lw $s0, tlc		#Top left corner of first letter in row 0 (top row)
+	lw $s7, tlc		#Top left corner of first letter in row 0 (top row)
 	li $t4, 8		#8 pixels per row and per column
 	sll $t4, $t4, 8		#To move down 8 pixels
 	mul $t5, $t4, $a1	#Multiply by number of rows to move down
-	add $s0, $s0, $t5	#Move down by the necessary number of rows
+	add $s7, $s7, $t5	#Move down by the necessary number of rows
 	srl $t4, $t4, 6		#To move right 8 pixels
 	mul $t5, $t4, $t3	#Multiply by number of spaces to move right
-	add $s0, $s0, $t5	#Move right by necessary number of spaces
+	add $s7, $s7, $t5	#Move right by necessary number of spaces
 	move $t1, $a0		#Move argument to $t1 since we are about to call another subroutine
 	lb $a0, 0($t1)		#Load char as argument
 	jal letter		#Call subroutine to draw letter
@@ -303,13 +306,10 @@ drawLetter:
 	lw $t4, black		#Load the color to draw the letter with (black)
 	addi $t2, $t2, 4	#Increment address by 4 to go to the next word
 	sll $t6, $t6, 2		#Multiply number of pixels by 4 (word align)
-	add $s0, $s0, $t6	#Shift by the necessary number of pixels
-	sw $t4, ($s0)		#Set destination pixel to black
+	add $s7, $s7, $t6	#Shift by the necessary number of pixels
+	sw $t4, ($s7)		#Set destination pixel to black
 	lw $t6, ($t2)		#Load next pixel (damn this is redundant, I should fix this at some point)
 	bne $t6, -1, drawLetter	#Loop until -1 is reached signifying the end of the array
 	jr $ra			#Return
 
-#Terminates the program
-exit:
-	li $v0, 10
-	syscall		#Syscall to exit
+
