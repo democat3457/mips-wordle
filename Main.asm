@@ -1,6 +1,8 @@
 
 
 .data
+frameBuffer: .space 0x100000
+
 #testingTarget: .asciiz "zabba"
 guessWord: .asciiz "bbbaa"
 guessWordMatches: .asciiz "00000"
@@ -12,15 +14,18 @@ afterIndirectMatch: .byte ')'
 beforeDirectMatch: .byte '['
 afterDirectMatch: .byte ']'
 
-preBoard: .asciiz 	"\t\t\t\t\t-----------------\t\t"
+preBoard: .asciiz 	"Enter 5 long word with only lowercase letters\n(x) represent an indirect match. [x] represent a direct match. 6 strikes or you're out!\n\n\t\t\t\t\t     _board_     \t\t_guesses_\n\t\t\t\t\t-----------------\t\t"
 postBoard: .asciiz   	"\t\t\t\t\t-----------------"
 betweenRow: .asciiz "\t\t\t\t\t|--+--+---+--+--|\t\t"
 preRow: .asciiz "\t\t\t\t\t|"
 postRow: .asciiz 	"|\n"
 
+loseMessage: .asciiz "\nBummer! The word was: "
 winMessage: .asciiz "\nWinner Winner Chicken Dinner!!"
 
-
+errorInvalidLength: .asciiz "length of 5 needed, try again\t\t\t\t\t\t"
+errorInvalidChars: .asciiz "\nOnly lowercase a-z, try again\t\t\t\t\t\t"
+errorWordNotFound: .asciiz "\nWord not found, try again\t\t\t\t\t\t"
 
 .text
 main:
@@ -40,13 +45,9 @@ syscall
 jal getWordAtIndex
 move $s1, $v0
 
-# Print the word for testing purposes
-move $a0, $s1 
-li $v0, 4       
-syscall
-
 #draw board
-#jal drawBoard
+jal drawBoard
+
 #print preboard
 li $v0, 4
 la $a0, preBoard
@@ -62,6 +63,12 @@ loopWhileTries:
 	li $a1, 6					#size of input, 5 + 1 null byte
 	syscall 					#reads said integer into $v0
 	
+	#validate user input
+	jal isValidInput
+	beq $v0, 1, inputWasValid
+		j loopWhileTries
+	inputWasValid:
+	
 	#print newline
 	li $v0, 11
 	li $a0, 10
@@ -70,17 +77,16 @@ loopWhileTries:
 	#calculate matchTypes
 	move $a0, $s1
 	la $a1, guessWord
-	#jal printMatchTypes
 	la $a2, guessWordMatches
 	jal wordle_compare_words
 	
 	jal asciiPrint
 	
-	#here for DEBUGGING POURPOSes
-	#li $v0, 4
-	#la $a0, guessWordMatches
-	#syscall
-
+	la $a0, guessWord
+	move $a1, $s5
+	addi $a1, $a1, 1
+	jal drawWord
+	
 	#check for win
 	jal checkWin
 	beq $v0, 0, noWin
@@ -91,7 +97,6 @@ loopWhileTries:
 		la $a0, winMessage
 		syscall
 		
-		#ADD A "THE WORD WAS BLANKKK"
 		j exit
 	
 	noWin:
@@ -109,9 +114,12 @@ li $v0, 4
 la $a0, postBoard
 syscall
 
+la $a0, loseMessage
+syscall
+move $a0, $s1
+syscall
 j exit
 
-.globl exit
 exit:
     li $v0, 10          # syscall for close
     syscall
@@ -137,7 +145,7 @@ asciiPrint:
 	syscall
 	jr $ra
 	
-noMatch:
+	noMatch:
 	li $v0, 11
 	lb $a0, beforeNoMatch
 	syscall
@@ -148,7 +156,7 @@ noMatch:
 	lb $a0, afterNoMatch
 	syscall
 	j returnToLoop
-indirectMatch:
+	indirectMatch:
 	li $v0, 11
 	lb $a0, beforeIndirectMatch
 	syscall
@@ -159,7 +167,7 @@ indirectMatch:
 	lb $a0, afterIndirectMatch
 	syscall
 	j returnToLoop
-directMatch:
+	directMatch:
 	li $v0, 11
 	lb $a0, beforeDirectMatch
 	syscall
@@ -169,7 +177,41 @@ directMatch:
 	
 	lb $a0, afterDirectMatch
 	syscall
-	j returnToLoop	
+	j returnToLoop
+
+isValidInput:
+	#scan for 	newline character in guessWord (less than 5 letter input)
+	#		not using lowercase letters	
+	li $t2, 10	#newline character
+	li $t3, 97	#'a', lower bound of lowercase alpha characters
+	li $t4, 122	#'z', upper bound of lowercase alpha characters
+	addi $t0, $0, 0
+	validateInputLoop:
+		lb $t1, guessWord($t0)
+		beq $t1, $t2, invalidLength
+		blt $t1, $t3, invalidChars
+		bgt $t1, $t4, invalidChars
+		addi $t0, $t0, 1
+	bne $t0, 5, validateInputLoop
+	
+	
+	
+	#return valid if no violations found
+	li $v0, 1
+	jr $ra
+	
+	invalidChars:
+	li $v0, 4
+	la $a0, errorInvalidChars
+	syscall
+	li $v0, 0
+	jr $ra
+	invalidLength:
+	li $v0, 4
+	la $a0, errorInvalidLength
+	syscall
+	li $v0, 0
+	jr $ra
 .include "Display.asm"
 .include "LogicSubroutines.asm"
 .include "Dictionary.asm"

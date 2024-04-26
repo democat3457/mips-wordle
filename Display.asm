@@ -1,5 +1,4 @@
 .data
-frameBuffer: .space 0x100000
 numPixels: .word 0x20000
 green: .word 0x0000FF00
 yellow: .word 0x00FFFF00
